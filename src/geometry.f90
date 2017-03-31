@@ -195,46 +195,67 @@ end do
 
 end subroutine internal2cartesian_reverse
 !-------------------------------------------------------------------------------
+function calc_bond(u, v)
+!-------------------------------------------------------------------------------
+real(dp) :: calc_bond
+real(dp), intent(in) :: u(3), v(3)
+
+calc_bond = v_size(v-u)
+
+end function calc_bond
+!-------------------------------------------------------------------------------
 function bond_length(R)
 !-------------------------------------------------------------------------------
 real(dp) :: bond_length
 real(dp), intent(in) :: R(3,2)
 
-bond_length = v_size(R(:,2) - R(:,1))
+bond_length = calc_bond(R(:,1), R(:,2))
 
 end function bond_length
+!-------------------------------------------------------------------------------
+function calc_angle(u, v)
+!-------------------------------------------------------------------------------
+real(dp) :: calc_angle
+real(dp), intent(in) :: u(3), v(3)
+
+calc_angle = dacos(dot_product(v_norm(u), v_norm(v)))
+
+end function calc_angle
 !-------------------------------------------------------------------------------
 function bond_angle(R)
 !-------------------------------------------------------------------------------
 real(dp) :: bond_angle
 real(dp), intent(in) :: R(3,3)
-real(dp) :: dR(3,2)
-real(dp) :: r12(3), r32(3)
 
-dR(:,1) = v_norm(R(:,1) - R(:,2))
-dR(:,2) = v_norm(R(:,3) - R(:,2))
-
-bond_angle = dacos(dot_product(dR(:,1),dR(:,2)))
+bond_angle = calc_angle(R(:,1)-R(:,2), R(:,3)-R(:,2))
 
 end function bond_angle
+!-------------------------------------------------------------------------------
+function calc_torsion(u, v, w)
+!-------------------------------------------------------------------------------
+real(dp) :: calc_torsion
+real(dp), intent(in) :: u(3), v(3), w(3)
+real(dp) :: p(3), q(3), s(3), arg
+
+p = v_norm(cross(u, v))
+q = v_norm(cross(v, w))
+s = cross(w, u)
+
+arg = dot_product(p, q)
+arg = min(1.0d0, max(-1.0d0, arg))
+
+calc_torsion = sign(dacos(arg), dot_product(s, v))
+
+end function calc_torsion
 !-------------------------------------------------------------------------------
 function torsion_angle(R)
 !-------------------------------------------------------------------------------
 real(dp) :: torsion_angle
 real(dp), intent(in) :: R(3,4)
-real(dp) :: dR(3,3), p(3), q(3), s(3)
-real(dp) :: arg
+real(dp) :: dR(3,3)
 
 dR(:,:) = R(:,2:4) - R(:,1:3)
-
-p = v_norm(cross(dR(:,1), dR(:,2)))
-q = v_norm(cross(dR(:,2), dR(:,3)))
-s = cross(dR(:,3), dR(:,1))
-
-arg = dot_product(p,q)
-arg = min(1.0d0, max(-1.0d0, arg))
-
-torsion_angle = sign(dacos(arg), dot_product(s, dR(:,2)))
+torsion_angle = calc_torsion(dR(:,1), dR(:,2), dR(:,3))
 
 end function torsion_angle
 !-------------------------------------------------------------------------------

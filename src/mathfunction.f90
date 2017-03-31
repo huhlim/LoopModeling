@@ -140,5 +140,27 @@ end if
 
 end function bound_angle90
 !-------------------------------------------------------------------------------
+function atan2(y, x)
+!-------------------------------------------------------------------------------
+! Arctangent for x and its perpendicular y
+!-------------------------------------------------------------------------------
+real(dp) :: atan2
+real(dp), intent(in) :: x,y
+real(dp) :: phi
+
+phi = atan(abs(y/x))
+
+if (x > 0) then
+    atan2 = phi
+else if (x < 0) then
+    atan2 = pi - phi
+else
+    atan2 = 0.5d0 * pi
+end if
+
+atan2 = sign(atan2, y)
+
+end function atan2
+!-------------------------------------------------------------------------------
 END MODULE MathFunction
 !-------------------------------------------------------------------------------
