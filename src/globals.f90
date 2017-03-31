@@ -8,6 +8,8 @@ public
 integer, parameter :: dp = kind(1.0d0)
 real(dp), parameter :: small_real = 1.0d-10
 real(dp), parameter :: pi = 3.141592653589793238462643383279502884197d0
+real(dp), parameter :: deg2rad = pi/180.d0
+real(dp), parameter :: rad2deg = 180.0d0/pi
 
 integer :: me
 integer, parameter :: king = 0
@@ -18,6 +20,8 @@ integer, parameter :: len_write = 120
 
 integer :: log_level
 character(len=len_write) :: log_msg
+
+integer, parameter :: print_screen = 6
 
 integer, parameter :: max_chain = 100
 integer, parameter :: max_res = 1000

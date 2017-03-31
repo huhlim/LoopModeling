@@ -37,11 +37,108 @@ cross(3) = u(1)*v(2) - u(2)*v(1)
 
 end function cross
 !-------------------------------------------------------------------------------
+function quaternion(axis, angle)
 !-------------------------------------------------------------------------------
+real(dp) :: quaternion(4)
+real(dp), intent(in) :: axis(3)
+real(dp), intent(in) :: angle
+
+quaternion(1) = dcos(angle/2.0d0)
+quaternion(2:4) = v_norm(axis(:)) * dsin(angle/2.0d0)
+
+end function quaternion
 !-------------------------------------------------------------------------------
+function q_product(q1, q2)
 !-------------------------------------------------------------------------------
+real(dp) :: q_product(4)
+real(dp), intent(in) :: q1(4), q2(4)
+real(dp) :: tmp(3)
+
+q_product(1) = q1(1)*q2(1) - dot_product(q1(2:4), q2(2:4))
+tmp = cross(q1(2:4), q2(2:4))
+q_product(2:4) = q1(1)*q2(2:4) + q2(1)*q1(2:4) + tmp
+
+end function q_product
 !-------------------------------------------------------------------------------
+function rotation_matrix(q)
 !-------------------------------------------------------------------------------
+real(dp) :: rotation_matrix(3,3)
+real(dp), intent(in) :: q(4)
+
+rotation_matrix(1,1) = q(1)**2 + q(2)**2 - q(3)**2 - q(4)**2
+rotation_matrix(1,2) = 2.0d0*(q(2)*q(3) - q(1)*q(4))
+rotation_matrix(1,3) = 2.0d0*(q(2)*q(4) + q(1)*q(3))
+
+rotation_matrix(2,1) = 2.0d0*(q(2)*q(3) + q(1)*q(4))
+rotation_matrix(2,2) = q(1)**2 - q(2)**2 + q(3)**2 - q(4)**2
+rotation_matrix(2,3) = 2.0d0*(q(3)*q(4) - q(1)*q(2))
+
+rotation_matrix(3,1) = 2.0d0*(q(2)*q(4) - q(1)*q(3))
+rotation_matrix(3,2) = 2.0d0*(q(3)*q(4) + q(1)*q(2))
+rotation_matrix(3,3) = q(1)**2 - q(2)**2 - q(3)**2 + q(4)**2
+
+end function rotation_matrix
+!-------------------------------------------------------------------------------
+function rotation_matrix2(axis, angle)
+!-------------------------------------------------------------------------------
+real(dp) :: rotation_matrix2(3,3)
+real(dp), intent(in) :: axis(3)
+real(dp), intent(in) :: angle
+
+rotation_matrix2 = rotation_matrix(quaternion(axis, angle))
+
+end function rotation_matrix2
+!-------------------------------------------------------------------------------
+function rotate(v, U)
+!-------------------------------------------------------------------------------
+real(dp) :: rotate(3)
+real(dp), intent(in) :: v(3), U(3,3)
+
+rotate(1) = dot_product(U(1,:), v)
+rotate(2) = dot_product(U(2,:), v)
+rotate(3) = dot_product(U(3,:), v)
+
+end function rotate
+!-------------------------------------------------------------------------------
+function rotate2(v, axis, angle)
+!-------------------------------------------------------------------------------
+real(dp) :: rotate2(3)
+real(dp), intent(in) :: v(3), axis(3), angle
+
+rotate2 = rotate(v, rotation_matrix2(axis, angle))
+
+end function rotate2
+!-------------------------------------------------------------------------------
+function bound_angle(ang)
+!-------------------------------------------------------------------------------
+real(dp) :: bound_angle
+real(dp), intent(in) :: ang
+
+if (ang < -pi) then
+    bound_angle = ang + 2.0d0*pi
+else if (ang > pi) then
+    bound_angle = ang - 2.0d0*pi
+else
+    bound_angle = ang
+end if
+
+end function bound_angle
+!-------------------------------------------------------------------------------
+function bound_angle90(ang)
+!-------------------------------------------------------------------------------
+real(dp) :: bound_angle90
+real(dp), intent(in) :: ang
+real(dp), parameter :: bound = 0.5d0*pi
+
+if (ang < -bound) then
+    bound_angle90 = pi + ang
+else if (ang > bound) then
+    bound_angle90 = pi - ang
+else
+    bound_angle90 = ang
+end if
+
+end function bound_angle90
 !-------------------------------------------------------------------------------
 END MODULE MathFunction
 !-------------------------------------------------------------------------------

@@ -4,7 +4,9 @@ PROGRAM LoopModeling
 use globals
 use logger
 use in_out, only: read_pdb, open_write_pdb, close_write_pdb, write_pdb
-use geometry, only: cartesian2internal, internal2cartesian
+!use geometry, only: cartesian2internal, internal2cartesian, internal2cartesian_reverse
+use geometry
+use mathfunction, only: quaternion, rotation_matrix
 
 implicit none
 
@@ -23,9 +25,10 @@ else
 end if
 
 call read_pdb(infile_pdb, protein)
-call cartesian2internal(protein, 1, protein%n_res)
+call cartesian2internal(protein)
+call internal2cartesian(protein)
 
-call write_pdb(6, protein)
+call write_pdb(print_screen, protein)
 
 !-------------------------------------------------------------------------------
 CONTAINS
