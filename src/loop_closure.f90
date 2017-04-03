@@ -59,30 +59,24 @@ public :: max_soln
 
 CONTAINS
 !-------------------------------------------------------------------------------
-subroutine solve_tripep_closure(b_len, b_ang, t_ang, rv, n_soln, rv_soln)
+subroutine solve_tripep_closure(b_len, b_ang, t_ang, r_anchor, n_soln, soln)
 !-------------------------------------------------------------------------------
 ! Solve the tripeptide closure problem
-!  Input: rv(3,4) -> coord. for 1st vertex N/CA, 3rd vertex CA/C
+!  Input: r_anchor(3,4) -> coord. for 1st vertex N/CA, 3rd vertex CA/C
 !  Output: n_soln -> number of solutions
-!          rv_soln(3,3,3,max_soln) -> solutions; xyz, N/CA/C, 
-!
-! In the previous source code, they were 
-!  - rv(3,4) <--
-!    real(dp), intent(in) :: r_n1(3), r_a1(3), r_a3(3), r_c3(3)
-!  - rv_soln(3,3,3,max_soln) <--
-!    real(dp), intent(out) :: r_soln_n(:,:,:), r_soln_a(:,:,:), r_soln_c(:,:,:)
+!          soln(3,3,3,max_soln) -> solutions; xyz, N/CA/C, 1/2/3
 !-------------------------------------------------------------------------------
 real(dp), intent(in) :: b_len(6), b_ang(7), t_ang(2)
-real(dp), intent(in)  :: rv(3,4)
+real(dp), intent(in)  :: r_anchor(3,4)
 !
 integer,  intent(out) :: n_soln
-real(dp), intent(out) :: rv_soln(3,3,3,max_soln)
+real(dp), intent(out) :: soln(3,3,3,max_soln)
 !
 real(dp) :: poly_coeff(0:deg_poly), roots(max_soln)
 
 call initialize_tripep_closure(b_len, b_ang, t_ang)
 
-call get_input_angles(rv, n_soln)
+call get_input_angles(r_anchor, n_soln)
 if (n_soln == 0) return
 
 call get_poly_coeff(poly_coeff)
@@ -90,7 +84,7 @@ call get_poly_coeff(poly_coeff)
 call solve_sturm(deg_poly, n_soln, poly_coeff, roots)
 if (n_soln == 0) return
 
-call coord_from_poly_roots(n_soln, roots, rv, rv_soln)
+call coord_from_poly_roots(n_soln, roots, r_anchor, soln)
 
 end subroutine solve_tripep_closure
 !-------------------------------------------------------------------------------
@@ -154,9 +148,9 @@ dsq_r32_max = geom%len_aa(2)**2 + geom%len_aa(3)**2 - 2.0d0*geom%len_aa(2)*geom%
 
 end subroutine initialize_tripep_closure
 !-------------------------------------------------------------------------------
-subroutine get_input_angles(rv, n_soln)
+subroutine get_input_angles(r_anchor, n_soln)
 !-------------------------------------------------------------------------------
-real(dp), intent(in)  :: rv(3,4)
+real(dp), intent(in)  :: r_anchor(3,4)
 integer,  intent(out) :: n_soln
 !
 real(dp) :: dsq_r32
@@ -165,7 +159,7 @@ integer :: i
 n_soln = max_soln
 
 ! Virtual bond
-geom%r32(:) = rv(:,3) - rv(:,2)
+geom%r32(:) = r_anchor(:,3) - r_anchor(:,2)
 dsq_r32 = dot_product(geom%r32, geom%r32)
 geom%len_aa(1) = sqrt(dsq_r32)
 
@@ -175,12 +169,12 @@ if (dsq_r32 < dsq_r32_min .or. dsq_r32 > dsq_r32_max) then
 end if
 
 ! Bond lengths
-geom%r12(:)    = rv(:,1) - rv(:,2)
+geom%r12(:)    = r_anchor(:,1) - r_anchor(:,2)
 geom%len_na(1) = sqrt(dot_product(geom%r12, geom%r12))
 geom%len_na(2) = geom%b_len0(3)
 geom%len_na(3) = geom%b_len0(6)
 !
-geom%r43(:)    = rv(:,4) - rv(:,3)
+geom%r43(:)    = r_anchor(:,4) - r_anchor(:,3)
 geom%len_ac(1) = geom%b_len0(1)
 geom%len_ac(2) = geom%b_len0(4)
 geom%len_ac(3) = sqrt(dot_product(geom%r43, geom%r43))
@@ -405,11 +399,11 @@ end if
 
 end subroutine get_poly_coeff
 !-------------------------------------------------------------------------------
-subroutine coord_from_poly_roots(n_soln, roots, rv, rv_soln)
+subroutine coord_from_poly_roots(n_soln, roots, r_anchor, soln)
 !-------------------------------------------------------------------------------
 integer, intent(in) :: n_soln
-real(dp), intent(in) :: roots(n_soln), rv(3,4)
-real(dp), intent(out) :: rv_soln(3,3,3,max_soln)
+real(dp), intent(in) :: roots(n_soln), r_anchor(3,4)
+real(dp), intent(out) :: soln(3,3,3,max_soln)
 
 real(dp) :: ex(3), ey(3), ez(3), b_a1a2(3), b_a3a2(3), r_tmp(3)
 real(dp) :: p_s(3,3), s1(3,3), s2(3,3), p_t(3,3), t1(3,3), t2(3,3)
@@ -470,10 +464,10 @@ angle = calc_angle(-s1(:,1), r_tmp)
 sig1_init = sign(angle, dot_product(r_tmp(:),s2(:,1)))
 
 ! CA
-r_a(:,1) = rv(:,2)
-r_a(:,2) = rv(:,2) + geom%len_aa(2)*b_a1a2(:)
-r_a(:,3) = rv(:,3)
-r0(:) = rv(:,2)
+r_a(:,1) = r_anchor(:,2)
+r_a(:,2) = r_anchor(:,2) + geom%len_aa(2)*b_a1a2(:)
+r_a(:,3) = r_anchor(:,3)
+r0(:) = r_anchor(:,2)
   
 if (present_tmp) then
     do i_soln = 1, n_soln
@@ -625,21 +619,21 @@ if (present_tmp) then
             tau3 = tau3_curr*dble(ii)/10.0d0
             Us = rotation_matrix2(-ex, tau3)
         
-            rv_soln(:,1,1,i_soln) = rv(:,1)
-            rv_soln(:,2,1,i_soln) = rv(:,2)
-            rv_soln(:,3,1,i_soln) = matmul(Us, r_c(:,1) - r0(:)) + r0(:)
-            rv_soln(:,1,2,i_soln) = matmul(Us, r_n(:,2) - r0(:)) + r0(:)
-            rv_soln(:,2,2,i_soln) = matmul(Us, r_a(:,2) - r0(:)) + r0(:)
-            rv_soln(:,3,2,i_soln) = matmul(Us, r_c(:,2) - r0(:)) + r0(:)
-            rv_soln(:,1,3,i_soln) = matmul(Us, r_n(:,3) - r0(:)) + r0(:)
-            rv_soln(:,2,3,i_soln) = rv(:,3)
-            rv_soln(:,3,3,i_soln) = rv(:,4)
+            soln(:,1,1,i_soln) = r_anchor(:,1)
+            soln(:,2,1,i_soln) = r_anchor(:,2)
+            soln(:,3,1,i_soln) = matmul(Us, r_c(:,1) - r0(:)) + r0(:)
+            soln(:,1,2,i_soln) = matmul(Us, r_n(:,2) - r0(:)) + r0(:)
+            soln(:,2,2,i_soln) = matmul(Us, r_a(:,2) - r0(:)) + r0(:)
+            soln(:,3,2,i_soln) = matmul(Us, r_c(:,2) - r0(:)) + r0(:)
+            soln(:,1,3,i_soln) = matmul(Us, r_n(:,3) - r0(:)) + r0(:)
+            soln(:,2,3,i_soln) = r_anchor(:,3)
+            soln(:,3,3,i_soln) = r_anchor(:,4)
 
             i_frame = i_frame + 1
             do i = 1, 3
-                r_tri_rot(:,1,i,i_frame,i_soln) = rv_soln(:,1,i,i_soln)
-                r_tri_rot(:,2,i,i_frame,i_soln) = rv_soln(:,2,i,i_soln)
-                r_tri_rot(:,3,i,i_frame,i_soln) = rv_soln(:,3,i,i_soln)
+                r_tri_rot(:,1,i,i_frame,i_soln) = soln(:,1,i,i_soln)
+                r_tri_rot(:,2,i,i_frame,i_soln) = soln(:,2,i,i_soln)
+                r_tri_rot(:,3,i,i_frame,i_soln) = soln(:,3,i,i_soln)
             end do
         end do
 
@@ -676,15 +670,15 @@ do i_soln = 1, n_soln
     sig1 = atan2(sin_sig(1), cos_sig(1))
     Us = rotation_matrix2(-ex, sig1_init-sig1)
      
-    rv_soln(:,1,1,i_soln) = rv(:,1)
-    rv_soln(:,2,1,i_soln) = rv(:,2)
-    rv_soln(:,3,1,i_soln) = matmul(Us, r_c(:,1) - r0(:)) + r0(:)
-    rv_soln(:,1,2,i_soln) = matmul(Us, r_n(:,2) - r0(:)) + r0(:)
-    rv_soln(:,2,2,i_soln) = matmul(Us, r_a(:,2) - r0(:)) + r0(:)
-    rv_soln(:,3,2,i_soln) = matmul(Us, r_c(:,2) - r0(:)) + r0(:)
-    rv_soln(:,1,3,i_soln) = matmul(Us, r_n(:,3) - r0(:)) + r0(:)
-    rv_soln(:,2,3,i_soln) = rv(:,3)
-    rv_soln(:,3,3,i_soln) = rv(:,4)
+    soln(:,1,1,i_soln) = r_anchor(:,1)
+    soln(:,2,1,i_soln) = r_anchor(:,2)
+    soln(:,3,1,i_soln) = matmul(Us, r_c(:,1) - r0(:)) + r0(:)
+    soln(:,1,2,i_soln) = matmul(Us, r_n(:,2) - r0(:)) + r0(:)
+    soln(:,2,2,i_soln) = matmul(Us, r_a(:,2) - r0(:)) + r0(:)
+    soln(:,3,2,i_soln) = matmul(Us, r_c(:,2) - r0(:)) + r0(:)
+    soln(:,1,3,i_soln) = matmul(Us, r_n(:,3) - r0(:)) + r0(:)
+    soln(:,2,3,i_soln) = r_anchor(:,3)
+    soln(:,3,3,i_soln) = r_anchor(:,4)
 end do
 
 end subroutine coord_from_poly_roots

@@ -162,5 +162,47 @@ atan2 = sign(atan2, y)
 
 end function atan2
 !-------------------------------------------------------------------------------
+recursive subroutine combinations(n, r, n_combinations, comb)
+!-------------------------------------------------------------------------------
+integer, intent(in) :: n, r
+integer, intent(out) :: n_combinations
+integer, intent(out), allocatable :: comb(:,:)
+integer :: i, j, k, n_sub
+integer, allocatable :: sub(:,:)
+
+if (r == 0) return
+
+! n_combinations = n!/r!/(n-r)!
+n_combinations = 1
+do i = 0, r-1
+    n_combinations = n_combinations * (n-i)
+end do
+do i = 1, r
+    n_combinations = n_combinations / i
+end do
+
+allocate(comb(r,n_combinations))
+
+if (r > 1) then
+    call combinations(n, r-1, n_sub, sub)
+    k = 0
+    do i = 1, n
+        do j = 1, n_sub
+            if (i >= sub(1,j)) cycle
+            !
+            k = k + 1
+            comb(1,k) = i 
+            comb(2:r,k) = sub(1:r-1,j)
+        end do
+    end do
+    deallocate(sub)
+else
+    do i = 1, n
+        comb(1,i) = i
+    end do
+end if
+
+end subroutine combinations
+!-------------------------------------------------------------------------------
 END MODULE MathFunction
 !-------------------------------------------------------------------------------
