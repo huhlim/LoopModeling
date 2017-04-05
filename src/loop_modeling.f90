@@ -2,6 +2,7 @@
 MODULE LOOP_MODELING
 !-------------------------------------------------------------------------------
 use globals
+use random, only: rand
 use mathfunction, only: combinations
 use geometry, only: bond_length, bond_angle, torsion_angle, rotate_torsion, &
                     internal2cartesian, internal2cartesian_reverse
@@ -26,6 +27,7 @@ real(dp), allocatable :: soln(:,:,:,:), s_ang(:,:,:)
 
 call get_closing_residue_list(protein, res_i, res_j, n_closing, closing_s)
 i_close = int(rand()*n_closing)+1
+write(*,'(A6,2x,A,4(2x,I4))') 'REMARK', 'CLOSING', i_close, closing_s(:,i_close)
 
 call get_tripep_geometry(protein, closing_s(:,i_close), rv, b_len, b_ang, t_ang)
 r_anchor(:,1:2) = rv(:,1:2,1)
