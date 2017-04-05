@@ -3,10 +3,8 @@ PROGRAM LoopModeling
 !-------------------------------------------------------------------------------
 use globals
 use logger
-use ran, only: initialize_random, seed, seed_given
 use in_out, only: read_pdb, open_write_pdb, close_write_pdb, write_pdb
-!use geometry, only: cartesian2internal, internal2cartesian, internal2cartesian_reverse
-use geometry
+use geometry, only: cartesian2internal, internal2cartesian
 use mathfunction, only: quaternion, rotation_matrix
 use loop_modeling, only: close_loop
 
@@ -30,8 +28,6 @@ else
 end if
 
 me = 0
-seed_given = .false.
-call initialize_random()
 
 call read_pdb(infile_pdb, protein)
 call cartesian2internal(protein)
