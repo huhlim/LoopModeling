@@ -5,13 +5,14 @@ use globals
 use random, only: rand
 use mathfunction, only: combinations
 use geometry, only: bond_length, bond_angle, torsion_angle, rotate_torsion, &
-                    internal2cartesian, internal2cartesian_reverse
+                    internal2cartesian, internal2cartesian_reverse, bound_angle
 use loop_closure, only: max_soln, solve_tripep_closure
 
 implicit none
 private
 
 public :: close_loop
+public :: close_loop_complete
 
 CONTAINS
 !-------------------------------------------------------------------------------
@@ -23,11 +24,10 @@ integer :: n_closing, i_close
 integer, allocatable :: closing_s(:,:)
 real(dp) :: rv(3,0:4,3), b_len(6), b_ang(7), t_ang(2), r_anchor(3,4)
 integer :: i_soln, n_soln, i_res, res_no, atm_no
-real(dp), allocatable :: soln(:,:,:,:), s_ang(:,:,:)
+real(dp), allocatable :: soln(:,:,:,:), s_ang(:,:,:), d_tor(:)
 
 call get_closing_residue_list(protein, res_i, res_j, n_closing, closing_s)
 i_close = int(rand()*n_closing)+1
-write(*,'(A6,2x,A,4(2x,I4))') 'REMARK', 'CLOSING', i_close, closing_s(:,i_close)
 
 call get_tripep_geometry(protein, closing_s(:,i_close), rv, b_len, b_ang, t_ang)
 r_anchor(:,1:2) = rv(:,1:2,1)
@@ -41,26 +41,107 @@ end if
 allocate(s_ang(2,3,n_soln))
 call get_torsion_angles_from_the_solutions(n_soln, soln, rv, s_ang)
 
+! pick up the least changed solution in torsions
+allocate(d_tor(n_soln))
+d_tor = 0.0d0
 do i_soln = 1, n_soln
     do i_res = 1, 3
-        ! rotate phi
+        ! delta-phi
         res_no = closing_s(i_res,i_close)
         atm_no = 3
-        call rotate_torsion(protein, res_no, atm_no, s_ang(1,i_res,i_soln))
+        d_tor(i_soln) = d_tor(i_soln) + &
+            abs(bound_angle(protein%residue(res_no)%t_ang(atm_no) - s_ang(1,i_res,i_soln)))
         !
-        ! rotate psi
+        ! delta-psi
         res_no = res_no + 1
         atm_no = 1
-        call rotate_torsion(protein, res_no, atm_no, s_ang(2,i_res,i_soln))
+        d_tor(i_soln) = d_tor(i_soln) + &
+            abs(bound_angle(protein%residue(res_no)%t_ang(atm_no) - s_ang(2,i_res,i_soln)))
     end do
+end do
+
+i_soln = minloc(d_tor, dim=1)
+
+do i_res = 1, 3
+    ! rotate phi
+    res_no = closing_s(i_res,i_close)
+    atm_no = 3
+    call rotate_torsion(protein, res_no, atm_no, s_ang(1,i_res,i_soln))
+    !
+    ! rotate psi
+    res_no = res_no + 1
+    atm_no = 1
+    call rotate_torsion(protein, res_no, atm_no, s_ang(2,i_res,i_soln))
 end do
 
 call internal2cartesian(protein, res_i, res_j)
 
 if (allocated(soln)) deallocate(soln)
 deallocate(s_ang)
+deallocate(d_tor)
 
 end subroutine close_loop
+!-------------------------------------------------------------------------------
+subroutine close_loop_complete(protein, res_i, res_j, n_output, output)
+!-------------------------------------------------------------------------------
+type(protein_type), intent(in) :: protein
+integer, intent(in) :: res_i, res_j
+integer, intent(out) :: n_output
+type(protein_type), intent(out), allocatable :: output(:)
+type(protein_type), allocatable :: protein_tmp(:)
+type(protein_type) :: tmp
+!
+integer :: n_closing, i_close
+integer, allocatable :: closing_s(:,:)
+real(dp) :: rv(3,0:4,3), b_len(6), b_ang(7), t_ang(2), r_anchor(3,4)
+integer :: i_soln, n_soln, i_res, res_no, atm_no
+real(dp), allocatable :: soln(:,:,:,:), s_ang(:,:,:)
+
+n_output = 0
+allocate(output(n_output))
+
+call get_closing_residue_list(protein, res_i, res_j, n_closing, closing_s)
+do i_close = 1, n_closing
+    call get_tripep_geometry(protein, closing_s(:,i_close), rv, b_len, b_ang, t_ang)
+    r_anchor(:,1:2) = rv(:,1:2,1)
+    r_anchor(:,3:4) = rv(:,2:3,3)
+
+    call solve_tripep_closure(b_len, b_ang, t_ang, r_anchor, n_soln, soln)
+    if (n_soln == 0) cycle
+
+    allocate(s_ang(2,3,n_soln))
+    call get_torsion_angles_from_the_solutions(n_soln, soln, rv, s_ang)
+
+    allocate(protein_tmp(n_output+n_soln))
+    protein_tmp(1:n_output) = output(1:n_output)
+    call move_alloc(protein_tmp, output)
+
+    do i_soln = 1, n_soln
+        tmp = protein
+        !
+        do i_res = 1, 3
+            ! rotate phi
+            res_no = closing_s(i_res,i_close)
+            atm_no = 3
+            call rotate_torsion(tmp, res_no, atm_no, s_ang(1,i_res,i_soln))
+            !
+            ! rotate psi
+            res_no = res_no + 1
+            atm_no = 1
+            call rotate_torsion(tmp, res_no, atm_no, s_ang(2,i_res,i_soln))
+        end do
+        call internal2cartesian(tmp, res_i, res_j)
+        !
+        output(n_output+i_soln) = tmp
+    end do
+
+    n_output = n_output + n_soln
+
+    if (allocated(soln)) deallocate(soln)
+    deallocate(s_ang)
+end do
+
+end subroutine close_loop_complete
 !-------------------------------------------------------------------------------
 subroutine get_closing_residue_list(protein, res_i, res_j, n_closing, closing_s)
 !-------------------------------------------------------------------------------

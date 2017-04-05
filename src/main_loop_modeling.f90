@@ -7,7 +7,7 @@ use random, only: initialize_random
 use in_out, only: read_pdb, open_write_pdb, close_write_pdb, write_pdb
 use geometry, only: cartesian2internal, internal2cartesian
 use mathfunction, only: quaternion, rotation_matrix
-use loop_modeling, only: close_loop
+use loop_modeling, only: close_loop, close_loop_complete
 
 implicit none
 
@@ -16,8 +16,9 @@ character(len=len_fname) :: cmd
 character(len=len_fname) :: infile_pdb
 
 type(protein_type) :: protein
+type(protein_type), allocatable :: model(:)
 
-integer :: i,n
+integer :: i,n, n_model
 integer, allocatable :: comb(:,:)
 
 n_argc = iargc()
@@ -35,9 +36,13 @@ call read_pdb(infile_pdb, protein)
 call cartesian2internal(protein)
 call internal2cartesian(protein)
 
-call close_loop(protein, 46, 52)
+!call close_loop(protein, 46, 52)
+call close_loop_complete(protein, 46, 52, n_model, model)
+print*, n_model
 
-call write_pdb(print_screen, protein)
+do i = 1, n_model
+    call write_pdb(print_screen, model(i), i)
+end do
 
 !-------------------------------------------------------------------------------
 CONTAINS
