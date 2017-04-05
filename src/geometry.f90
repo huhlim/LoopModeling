@@ -275,8 +275,8 @@ do i_dep = 1, protein%residue(i_res)%n_torsion_dep(i_atm)
     ang = protein%residue(j_res)%t_ang(j_atm) 
     protein%residue(j_res)%t_ang(j_atm) = &
         bound_angle(protein%residue(j_res)%t_ang(j_atm) + d_ang)
-    write(*,'(A,3(1x,I4), 3(2x,F6.1))') 'REMARK', i_dep, j_res, j_atm, ang*rad2deg, &
-            protein%residue(j_res)%t_ang(j_atm) *rad2deg
+    !write(*,'(A,3(1x,I4), 3(2x,F6.1))') 'REMARK', i_dep, j_res, j_atm, ang*rad2deg, &
+    !        protein%residue(j_res)%t_ang(j_atm) *rad2deg
 end do
 
 end subroutine rotate_torsion

@@ -37,7 +37,7 @@ call read_pdb(infile_pdb, protein)
 call cartesian2internal(protein)
 call internal2cartesian(protein)
 
-call close_loop(protein, 48, 51)
+call close_loop(protein, 48, 50)
 
 call write_pdb(print_screen, protein)
 

@@ -4,7 +4,7 @@ MODULE LOOP_CLOSURE
 use globals
 use logger, only: terminate_with_error
 use geometry, only: calc_angle, calc_torsion, rotation_matrix2
-use mathfunction, only: atan2, cross
+use mathfunction, only: atan2, cross, v_size
 
 implicit none
 private
@@ -70,7 +70,7 @@ real(dp), intent(in) :: b_len(6), b_ang(7), t_ang(2)
 real(dp), intent(in)  :: r_anchor(3,4)
 !
 integer,  intent(out) :: n_soln
-real(dp), intent(out) :: soln(3,3,3,max_soln)
+real(dp), intent(out), allocatable :: soln(:,:,:,:)
 !
 real(dp) :: poly_coeff(0:deg_poly), roots(max_soln)
 
@@ -84,6 +84,7 @@ call get_poly_coeff(poly_coeff)
 call solve_sturm(deg_poly, n_soln, poly_coeff, roots)
 if (n_soln == 0) return
 
+allocate(soln(3,3,3,n_soln))
 call coord_from_poly_roots(n_soln, roots, r_anchor, soln)
 
 end subroutine solve_tripep_closure
@@ -94,9 +95,9 @@ subroutine initialize_tripep_closure(b_len, b_ang, t_ang)
 !-------------------------------------------------------------------------------
 real(dp), intent(in) :: b_len(6), b_ang(7), t_ang(2)
 !
-real(dp) :: len1, len2, a_min, a_max
+real(dp) :: len1, a_min, a_max
 real(dp), dimension(3) :: axis, rr_a1, rr_c1, rr_n2, rr_a2, rr_n2a2_ref, rr_c1a1
-real(dp), dimension(3) :: rr_a1a2, dr, bb_c1a1, bb_a1a2, bb_a2n2
+real(dp), dimension(3) :: rr_a1a2, bb_c1a1, bb_a1a2, bb_a2n2
 real(dp) :: Us(3,3)
 real(dp), parameter :: tol_secant = 1.0d-15
 integer, parameter :: max_iter_sturm = 100, max_iter_secant = 20
@@ -121,19 +122,17 @@ do i = 0, 1
     Us = rotation_matrix2(axis, geom%t_ang0(i+1))
     rr_a2(:) =  matmul(Us, rr_n2a2_ref) + rr_n2(:)
     rr_a1a2(:) = rr_a2(:) - rr_a1(:)
-    dr(:) = rr_a1a2(:)
-    len2 = dot_product(dr, dr)
-    len1 = sqrt(len2)
+    len1 = v_size(rr_a1a2)
     ! len_aa
     geom%len_aa(i+2) = len1
     bb_c1a1(:) = rr_c1a1(:)/geom%b_len0(3*i+1)
     bb_a1a2(:) = rr_a1a2(:)/len1
     bb_a2n2(:) = (rr_n2(:) - rr_a2(:))/geom%b_len0(3*i+3)
     ! xi
-    xi_lc(i+2)%angle = calc_angle(bb_a1a2, bb_a2n2)
+    xi_lc(i+2)%angle = calc_angle(-bb_a1a2, bb_a2n2)
 
     ! eta
-    eta_lc(i+1)%angle = calc_angle(-bb_a1a2, -bb_c1a1)
+    eta_lc(i+1)%angle = calc_angle(bb_a1a2, -bb_c1a1)
 
     ! delta: pi -  dih of N(1)CA(1)CA(3)C(3)
     delta_lc(i+1)%angle = pi - calc_torsion(bb_c1a1, bb_a1a2, bb_a2n2)
@@ -189,10 +188,10 @@ delta_lc(3)%angle = calc_torsion(-geom%u12, geom%u32, geom%u43)
 delta_lc(0)%angle = delta_lc(3)%angle
 
 ! xi_lc(1)
-xi_lc(1)%angle = calc_angle(geom%u32, geom%u12)
+xi_lc(1)%angle = calc_angle(-geom%u32, geom%u12)
  
 ! eta_lc(3)
-eta_lc(3)%angle = calc_angle(-geom%u32, geom%u43)
+eta_lc(3)%angle = calc_angle(geom%u32, geom%u43)
 
 do i = 1, 3
     delta_lc(i)%cos_angle = cos(delta_lc(i)%angle)
@@ -460,7 +459,7 @@ end do
 
 ! initial sig(1)
 r_tmp(:) = (geom%r12(:)/geom%len_na(1) - p_s_c(:,1))/xi_lc(1)%sin_angle
-angle = calc_angle(-s1(:,1), r_tmp)
+angle = calc_angle(s1(:,1), r_tmp)
 sig1_init = sign(angle, dot_product(r_tmp(:),s2(:,1)))
 
 ! CA
