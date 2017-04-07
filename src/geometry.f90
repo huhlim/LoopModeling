@@ -195,6 +195,36 @@ end do
 
 end subroutine internal2cartesian_reverse
 !-------------------------------------------------------------------------------
+subroutine report_protein_geometry(protein, res_i, res_j)
+!-------------------------------------------------------------------------------
+type(protein_type), intent(in) :: protein
+integer, intent(in), optional :: res_i, res_j
+integer :: i_res, i_atm, res_start, res_end
+
+if (present(res_i)) then
+    res_start = res_i
+else
+    res_start = 1
+end if
+if (present(res_j)) then
+    res_end = res_j
+else
+    res_end = protein%n_res
+end if
+
+do i_res = res_start, res_end
+    do i_atm = 1, protein%residue(i_res)%n_atom
+        write(*,'(A,2x,I4,1x,I2,2x,3F8.3,2x,F8.3,2(1x,F7.1))') &
+            'GEOMETRY', i_res, i_atm, &
+            protein%residue(i_res)%R(:,i_atm), &
+            protein%residue(i_res)%b_len(i_atm), &
+            protein%residue(i_res)%b_ang(i_atm)*rad2deg, &
+            protein%residue(i_res)%t_ang(i_atm)*rad2deg
+    end do
+end do
+
+end subroutine report_protein_geometry
+!-------------------------------------------------------------------------------
 function calc_bond(u, v)
 !-------------------------------------------------------------------------------
 real(dp) :: calc_bond
@@ -306,7 +336,7 @@ type(protein_type), intent(in) :: protein
 integer, intent(in) :: i_res, i_atm
 integer, intent(out) :: atom_prev(2,3)
 real(dp), intent(out) :: par(3)
-integer :: j_res, j_atm, ia
+integer :: j_res, j_atm
 
 atom_prev = 0
 par = 0.0d0
