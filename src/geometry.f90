@@ -418,5 +418,43 @@ end do
 
 end subroutine initialize_protein_geometry
 !-------------------------------------------------------------------------------
+function calc_rmsd(ref, protein, res_i, res_j)
+!-------------------------------------------------------------------------------
+real(dp) :: calc_rmsd
+type(protein_type), intent(in) :: ref, protein
+integer, intent(in) :: res_i, res_j
+integer :: i_res, i_atm
+real(dp) :: dr(3,4)
+
+calc_rmsd = 0.0d0
+do i_res = res_i, res_j
+    dr = protein%residue(i_res)%R - ref%residue(i_res)%R
+    do i_atm = 1, 4
+        calc_rmsd = calc_rmsd + dot_product(dr(:,i_atm),dr(:,i_atm))
+    end do
+end do
+
+calc_rmsd = dsqrt(calc_rmsd / (4.0d0 * (res_j-res_i+1)))
+
+end function calc_rmsd
+!-------------------------------------------------------------------------------
+function calc_rmsd_CA(ref, protein, res_i, res_j)
+!-------------------------------------------------------------------------------
+real(dp) :: calc_rmsd_CA
+type(protein_type), intent(in) :: ref, protein
+integer, intent(in) :: res_i, res_j
+integer :: i_res
+real(dp) :: dr(3)
+
+calc_rmsd_CA = 0.0d0
+do i_res = res_i, res_j
+    dr = protein%residue(i_res)%R(:,2) - ref%residue(i_res)%R(:,2)
+    calc_rmsd_CA = calc_rmsd_CA + dot_product(dr,dr)
+end do
+
+calc_rmsd_CA = dsqrt(calc_rmsd_CA / (res_j-res_i+1))
+
+end function calc_rmsd_CA
+!-------------------------------------------------------------------------------
 END MODULE GEOMETRY
 !-------------------------------------------------------------------------------

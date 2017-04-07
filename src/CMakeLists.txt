@@ -58,6 +58,9 @@ target_link_libraries(in_out globals logger geometry)
 
 add_library (sturm sturm.c)
 
+add_library (cluster cluster.f90)
+target_link_libraries(cluster globals)
+
 add_library (loop_closure loop_closure.f90)
 target_link_libraries(loop_closure globals geometry mathfunction sturm)
 
@@ -65,7 +68,7 @@ add_library (loop_modeling loop_modeling.f90)
 target_link_libraries(loop_modeling globals mathfunction geometry loop_closure)
 
 add_executable (LoopModeling main_loop_modeling.f90)
-target_link_libraries (LoopModeling globals logger random in_out geometry loop_modeling)
+target_link_libraries (LoopModeling globals logger random in_out geometry cluster loop_modeling)
 
 set (EXECUTABLES "LoopModeling")
 install (TARGETS ${EXECUTABLES} RUNTIME DESTINATION "bin")

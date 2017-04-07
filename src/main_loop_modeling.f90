@@ -5,9 +5,11 @@ use globals
 use logger
 use random, only: initialize_random
 use in_out, only: read_pdb, open_write_pdb, close_write_pdb, write_pdb
-use geometry, only: cartesian2internal, internal2cartesian, report_protein_geometry
+use geometry, only: cartesian2internal, internal2cartesian, calc_RMSD_CA
 use mathfunction, only: quaternion, rotation_matrix
 use loop_modeling, only: close_loop, close_loop_complete
+
+use cluster, only: hierarchical_clustering
 
 implicit none
 
@@ -20,9 +22,11 @@ type(protein_type) :: protein, ref
 type(protein_type) :: loop, ref_loop
 type(protein_type), allocatable :: model(:)
 
-integer :: i, n_model, n_sum, res_i, res_j
+integer :: i, j, n_model, n_sum, res_i, res_j
 integer, allocatable :: comb(:,:)
 integer, parameter :: print_unit = 77
+real(dp), allocatable :: dmtx(:,:)
+integer :: center(10)
 
 n_argc = iargc()
 call getarg(0, cmd)
@@ -50,6 +54,18 @@ call open_write_pdb(print_unit, outfile_pdb)
 call write_pdb(print_unit, ref, 0)
 
 call close_loop_complete(loop, res_i, res_j, n_model, model, unperturbed=ref_loop)
+
+allocate(dmtx(n_model, n_model))
+dmtx = 0.0d0
+do i = 1, n_model-1
+    do j = i+1, n_model
+        dmtx(j,i) = calc_RMSD_CA(model(i), model(j), res_i, res_j)
+    end do
+end do
+dmtx = dmtx + transpose(dmtx)
+
+call hierarchical_clustering(n_model, 10, dmtx, center)
+
 do i = 1, n_model
     call copy_loop_to_protein(model(i), protein, 47, 52)
     call write_pdb(print_unit, protein, i)
