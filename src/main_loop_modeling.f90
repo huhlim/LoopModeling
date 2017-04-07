@@ -39,20 +39,19 @@ call cartesian2internal(protein)
 call internal2cartesian(protein)
 
 ref = protein
-
 call randomize_torsion(protein)
 
 outfile_pdb = 'out.pdb'
 call open_write_pdb(print_unit, outfile_pdb)
 
-!call close_loop_complete(protein, 47, 52, n_model, model, unperturbed=ref)
-!do i = 1, n_model
-!    call write_pdb(print_unit, model(i), i)
-!end do
+call close_loop_complete(protein, 47, 52, n_model, model, unperturbed=ref)
+do i = 1, n_model
+    call write_pdb(print_unit, model(i), i)
+end do
 !
-call close_loop(protein, 47, 52, unperturbed=ref)
+!call close_loop(protein, 47, 52, unperturbed=ref)
+!call write_pdb(print_unit, protein)
 
-call write_pdb(print_unit, protein)
 call close_write_pdb(print_unit)
 
 !-------------------------------------------------------------------------------

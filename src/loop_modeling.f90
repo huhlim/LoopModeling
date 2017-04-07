@@ -44,7 +44,6 @@ call get_closing_residue_list(protein0, res_i, res_j, n_closing, closing_s)
 do i_close = 1, n_closing
     protein = protein0
     call internal2cartesian_reverse(protein, closing_s(3,i_close), res_j+1)
-    call cartesian2internal(protein, res_i, res_j)
     !
     call get_tripep_geometry(protein0, closing_s(:,i_close), rv, b_len, b_ang, t_ang)
     r_anchor(:,1:2) = protein%residue(closing_s(1,i_close))%R(:,1:2)
@@ -96,20 +95,20 @@ do i_res = 1, 3
     call rotate_torsion(protein0, res_no, atm_no, s_ang_min(2,i_res))
 end do
 
-!call internal2cartesian(protein0, res_i, closing_min(3))
-call internal2cartesian(protein0)   ! to debug
+call internal2cartesian(protein0, res_i, closing_min(3))
 call cartesian2internal(protein0)
 
 end subroutine close_loop
 !-------------------------------------------------------------------------------
-subroutine close_loop_complete(protein0, res_i, res_j, n_output, output)
+subroutine close_loop_complete(protein_in, res_i, res_j, n_output, output, unperturbed)
 !-------------------------------------------------------------------------------
-type(protein_type), intent(in) :: protein0
+type(protein_type), intent(in) :: protein_in
 integer, intent(in) :: res_i, res_j
 integer, intent(out) :: n_output
 type(protein_type), intent(out), allocatable :: output(:)
+type(protein_type), intent(in), optional :: unperturbed
 type(protein_type), allocatable :: protein_tmp(:)
-type(protein_type) :: tmp, protein
+type(protein_type) :: tmp, protein, protein0
 !
 integer :: n_closing, i_close
 integer, allocatable :: closing_s(:,:)
@@ -117,19 +116,25 @@ real(dp) :: rv(3,0:4,3), b_len(6), b_ang(7), t_ang(2), r_anchor(3,4)
 integer :: i_soln, n_soln, i_res, res_no, atm_no
 real(dp), allocatable :: soln(:,:,:,:), s_ang(:,:,:)
 
+protein0 = protein_in
+if (present(unperturbed)) then
+    call link_broken_bond(protein0, res_j+1, unperturbed=unperturbed)
+else
+    call link_broken_bond(protein0, res_j+1)
+end if
+
 n_output = 0
 allocate(output(n_output))
 
 call get_closing_residue_list(protein0, res_i, res_j, n_closing, closing_s)
 do i_close = 1, n_closing
     protein = protein0
-    write(*,'(A)') 'REMARK built inverse 47-49'
     call internal2cartesian_reverse(protein, closing_s(3,i_close), res_j+1)
-    call write_pdb(print_screen, protein, i_close+2)
     !
-    call get_tripep_geometry(protein, closing_s(:,i_close), rv, b_len, b_ang, t_ang)
-    r_anchor(:,1:2) = rv(:,1:2,1)
-    r_anchor(:,3:4) = rv(:,2:3,3)
+    call get_tripep_geometry(protein0, closing_s(:,i_close), rv, b_len, b_ang, t_ang)
+    r_anchor(:,1:2) = protein%residue(closing_s(1,i_close))%R(:,1:2)
+    r_anchor(:,3:4) = protein%residue(closing_s(3,i_close))%R(:,2:3)
+    rv(:,4,3) = protein%residue(closing_s(3,i_close)+1)%R(:,1)
 
     call solve_tripep_closure(b_len, b_ang, t_ang, r_anchor, n_soln, soln)
     if (n_soln == 0) cycle
@@ -155,8 +160,8 @@ do i_close = 1, n_closing
             atm_no = 1
             call rotate_torsion(tmp, res_no, atm_no, s_ang(2,i_res,i_soln))
         end do
-        !call internal2cartesian(tmp, res_i, res_j)
-        call internal2cartesian(tmp) ! to debug
+        call internal2cartesian(tmp, res_i, res_j)
+        call cartesian2internal(tmp)
         !
         output(n_output+i_soln) = tmp
     end do
@@ -165,7 +170,6 @@ do i_close = 1, n_closing
 
     if (allocated(soln)) deallocate(soln)
     deallocate(s_ang)
-    exit
 end do
 
 end subroutine close_loop_complete
