@@ -9,7 +9,7 @@ use geometry, only: cartesian2internal, internal2cartesian, calc_RMSD_CA
 use mathfunction, only: quaternion, rotation_matrix
 use loop_modeling, only: close_loop, close_loop_complete
 
-use cluster, only: hierarchical_clustering
+use cluster, only: hierarchical_clustering, hierarchical_clustering_cutoff
 
 implicit none
 
@@ -22,11 +22,12 @@ type(protein_type) :: protein, ref
 type(protein_type) :: loop, ref_loop
 type(protein_type), allocatable :: model(:)
 
-integer :: i, j, n_model, n_sum, res_i, res_j
+integer :: i, j, n_model, n_sum, res_i, res_j, n_cluster
 integer, allocatable :: comb(:,:)
 integer, parameter :: print_unit = 77
 real(dp), allocatable :: dmtx(:,:)
-integer :: center(10)
+!integer :: center(10)
+integer, allocatable :: center(:)
 
 n_argc = iargc()
 call getarg(0, cmd)
@@ -48,7 +49,7 @@ call extract_loop_from_protein(ref, ref_loop, 47, 52, res_i, res_j)
 call randomize_torsion(protein)
 call extract_loop_from_protein(protein, loop, 47, 52, res_i, res_j)
 
-outfile_pdb = 'out.pdb'
+outfile_pdb = 'output.pdb'
 call open_write_pdb(print_unit, outfile_pdb)
 
 call write_pdb(print_unit, ref, 0)
@@ -64,12 +65,18 @@ do i = 1, n_model-1
 end do
 dmtx = dmtx + transpose(dmtx)
 
-call hierarchical_clustering(n_model, 10, dmtx, center)
+!call hierarchical_clustering(n_model, 10, dmtx, center)
+call hierarchical_clustering_cutoff(n_model, 1.0d0, dmtx, n_cluster, center)
+print*, n_cluster
 
 do i = 1, n_model
     call copy_loop_to_protein(model(i), protein, 47, 52)
     call write_pdb(print_unit, protein, i)
 end do
+!do i = 1, n_cluster
+!    call copy_loop_to_protein(model(center(i)), protein, 47, 52)
+!    call write_pdb(print_unit, protein, i)
+!end do
 deallocate(model)
 
 call close_write_pdb(print_unit)
