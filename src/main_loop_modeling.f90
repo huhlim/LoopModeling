@@ -17,9 +17,10 @@ character(len=len_fname) :: infile_pdb
 character(len=len_fname) :: outfile_pdb
 
 type(protein_type) :: protein, ref
+type(protein_type) :: loop, ref_loop
 type(protein_type), allocatable :: model(:)
 
-integer :: i,n, n_model
+integer :: i, n_model, n_sum, res_i, res_j
 integer, allocatable :: comb(:,:)
 integer, parameter :: print_unit = 77
 
@@ -39,22 +40,24 @@ call cartesian2internal(protein)
 call internal2cartesian(protein)
 
 ref = protein
+call extract_loop_from_protein(ref, ref_loop, 47, 52, res_i, res_j)
 call randomize_torsion(protein)
+call extract_loop_from_protein(protein, loop, 47, 52, res_i, res_j)
 
 outfile_pdb = 'out.pdb'
 call open_write_pdb(print_unit, outfile_pdb)
 
-call close_loop_complete(protein, 47, 52, n_model, model, unperturbed=ref)
+call write_pdb(print_unit, ref, 0)
+
+call close_loop_complete(loop, res_i, res_j, n_model, model, unperturbed=ref_loop)
 do i = 1, n_model
-    call write_pdb(print_unit, model(i), i)
+    call copy_loop_to_protein(model(i), protein, 47, 52)
+    call write_pdb(print_unit, protein, i)
 end do
-!
-!call close_loop(protein, 47, 52, unperturbed=ref)
-!call write_pdb(print_unit, protein)
+deallocate(model)
 
 call close_write_pdb(print_unit)
 
-!-------------------------------------------------------------------------------
 CONTAINS
 !-------------------------------------------------------------------------------
 subroutine usage(cmd)

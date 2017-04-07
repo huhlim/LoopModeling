@@ -230,5 +230,49 @@ residue%n_atom = n_atom
 
 end subroutine reallocate_residue_type
 !-------------------------------------------------------------------------------
+subroutine extract_loop_from_protein(protein, loop, res_i, res_j, res_li, res_lj)
+!-------------------------------------------------------------------------------
+! extracts res_i-1 to res_j+1
+!-------------------------------------------------------------------------------
+type(protein_type), intent(in) :: protein
+type(protein_type), intent(out) :: loop
+integer, intent(in) :: res_i, res_j
+integer, intent(out) :: res_li, res_lj
+integer :: i_res, n_res, res_shift
+
+n_res = res_j - res_i + 3
+res_shift = res_i-2
+call allocate_protein_type(loop, n_res=n_res, n_chain=1)
+
+res_li = res_i - res_shift
+res_lj = res_j - res_shift
+loop%residue = protein%residue(res_i-1:res_j+1)
+
+do i_res = 1, loop%n_res
+    loop%residue(i_res)%atom_prev(1,:,:) =  &
+        loop%residue(i_res)%atom_prev(1,:,:) - res_shift
+    loop%residue(i_res)%torsion_dep(1,:,:) =  &
+        loop%residue(i_res)%torsion_dep(1,:,:) - res_shift
+end do
+
+end subroutine extract_loop_from_protein
+!-------------------------------------------------------------------------------
+subroutine copy_loop_to_protein(loop, protein, res_i, res_j)
+!-------------------------------------------------------------------------------
+type(protein_type), intent(in) :: loop
+type(protein_type), intent(inout) :: protein
+integer, intent(in) :: res_i, res_j
+integer :: i_res, res_shift
+
+res_shift = res_i-2
+do i_res = res_i, res_j
+    protein%residue(i_res)%R(:,:) = loop%residue(i_res-res_shift)%R(:,:)
+    protein%residue(i_res)%b_len(:) = loop%residue(i_res-res_shift)%b_len(:)
+    protein%residue(i_res)%b_ang(:) = loop%residue(i_res-res_shift)%b_ang(:)
+    protein%residue(i_res)%t_ang(:) = loop%residue(i_res-res_shift)%t_ang(:)
+end do
+
+end subroutine
+!-------------------------------------------------------------------------------
 END MODULE GLOBALS
 !-------------------------------------------------------------------------------
