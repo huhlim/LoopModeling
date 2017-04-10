@@ -13,15 +13,19 @@ public :: hierarchical_clustering_cutoff
 
 CONTAINS
 !-------------------------------------------------------------------------------
-subroutine hierarchical_clustering(n_conf, n_cluster, dmatrix, center)
+subroutine hierarchical_clustering(n_conf0, n_cluster, dmatrix, center)
 !-------------------------------------------------------------------------------
-integer, intent(in) :: n_conf, n_cluster
+integer, intent(in) :: n_conf0, n_cluster
 real(dp), intent(in) :: dmatrix(:,:)
 integer, intent(out) :: center(n_cluster)
-integer :: i, k, memb(n_conf, n_conf), clsize(n_conf), clij(2)
-real(dp) :: dij, dmtx(n_conf, n_conf)
+integer :: i, k, n_conf, clij(2)
+real(dp) :: dij
+integer, allocatable :: memb(:,:), clsize(:), i_conf(:)
+real(dp), allocatable :: dmtx(:,:)
 
-dmtx = dmatrix
+call remove_redundant(n_conf0, dmatrix, n_conf, dmtx, i_conf)
+allocate(memb(n_conf, n_conf))
+allocate(clsize(n_conf))
 memb(:,:) = 0
 clsize(:) = 1
 do i = 1, n_conf
@@ -49,22 +53,29 @@ do i = 1, n_cluster
     if (clsize(i) == 0) cycle
     !
     k = k + 1
-    call get_centroid(dmatrix, clsize(i), memb(:,i))
-    center(k) = memb(1,i)
+    call get_centroid(dmtx, clsize(i), memb(:,i))
+    center(k) = i_conf(memb(1,i))
 end do
+
+deallocate(memb)
+deallocate(clsize)
 
 end subroutine hierarchical_clustering
 !-------------------------------------------------------------------------------
-subroutine hierarchical_clustering_cutoff(n_conf, cutoff, dmatrix, n_cluster, center)
+subroutine hierarchical_clustering_cutoff(n_conf0, cutoff, dmatrix, n_cluster, center)
 !-------------------------------------------------------------------------------
-integer, intent(in) :: n_conf
+integer, intent(in) :: n_conf0
 real(dp), intent(in) :: dmatrix(:,:), cutoff
 integer, intent(out) :: n_cluster
 integer, intent(out), allocatable :: center(:)
-integer :: i, k, memb(n_conf, n_conf), clsize(n_conf), clij(2)
-real(dp) :: dij, dmtx(n_conf, n_conf)
+integer :: i, k, n_conf, clij(2)
+real(dp) :: dij
+integer, allocatable :: memb(:,:), clsize(:), i_conf(:)
+real(dp), allocatable :: dmtx(:,:)
 
-dmtx = dmatrix
+call remove_redundant(n_conf0, dmatrix, n_conf, dmtx, i_conf)
+allocate(memb(n_conf, n_conf))
+allocate(clsize(n_conf))
 memb(:,:) = 0
 clsize(:) = 1
 do i = 1, n_conf
@@ -73,11 +84,11 @@ end do
 
 n_cluster = n_conf
 do i = n_conf, 1, -1
-    !call linkage_maximum(dmatrix, n_conf, memb, clsize, clij, dij)
-    call linkage_minimum(dmatrix, n_conf, memb, clsize, clij, dij)
-    !call linkage_average(dmatrix, n_conf, memb, clsize, clij, dij)
-    !call linkage_centroid(dmatrix, n_conf, memb, clsize, clij, dij)
-    print*, n_cluster, dij
+    !call linkage_maximum(dmtx, n_conf, memb, clsize, clij, dij)
+    call linkage_minimum(dmtx, n_conf, memb, clsize, clij, dij)
+    !call linkage_average(dmtx, n_conf, memb, clsize, clij, dij)
+    !call linkage_centroid(dmtx, n_conf, memb, clsize, clij, dij)
+    write(*,'(3(I5,2x),F8.5)') n_cluster, clij, dij
     if (dij > cutoff) exit
     !
     ! for linkage_ward
@@ -89,7 +100,7 @@ do i = n_conf, 1, -1
     clsize(clij(2)) = 0
     !
     ! for linkage_centroid
-    !call get_centroid(dmatrix, clsize(clij(1)), memb(:,clij(1)))
+    !call get_centroid(dmtx, clsize(clij(1)), memb(:,clij(1)))
 end do
 
 allocate(center(n_cluster))
@@ -99,9 +110,12 @@ do i = 1, n_conf
     if (clsize(i) == 0) cycle
     !
     k = k + 1
-    call get_centroid(dmatrix, clsize(i), memb(:,i))
-    center(k) = memb(1,i)
+    call get_centroid(dmtx, clsize(i), memb(:,i))
+    center(k) = i_conf(memb(1,i))
 end do
+
+deallocate(memb)
+deallocate(clsize)
 
 end subroutine hierarchical_clustering_cutoff
 !-------------------------------------------------------------------------------
@@ -285,6 +299,49 @@ if (i_cntr /= 1) then
 end if
 
 end subroutine get_centroid
+!-------------------------------------------------------------------------------
+subroutine remove_redundant(n_conf0, dmtx0, n_conf, dmtx, i_conf)
+!-------------------------------------------------------------------------------
+integer, intent(in) :: n_conf0
+real(dp), intent(in) :: dmtx0(:,:)
+integer, intent(out) :: n_conf
+real(dp), intent(out), allocatable :: dmtx(:,:)
+integer, intent(out), allocatable :: i_conf(:)
+integer, allocatable :: uniq(:)
+real(dp), parameter :: redundant_cutoff = 0.001d0
+integer :: i, j
+logical :: is_uniq
+
+allocate(uniq(n_conf0))
+n_conf = 0
+
+do i = 1, n_conf0
+    is_uniq = .true.
+    do j = 1, i-1
+        if (dmtx0(j,i) < redundant_cutoff) then
+            is_uniq = .false.
+            exit
+        end if
+    end do
+    !
+    if (is_uniq) then
+        n_conf = n_conf + 1
+        uniq(n_conf) = i
+    end if
+end do
+
+allocate(i_conf(n_conf))
+i_conf(1:n_conf) = uniq(1:n_conf)
+deallocate(uniq)
+
+allocate(dmtx(n_conf,n_conf))
+do i = 1, n_conf
+    do j = 1, n_conf
+        dmtx(j,i) = dmtx0(i_conf(j), i_conf(i))
+    end do
+end do
+
+end subroutine remove_redundant
 !-------------------------------------------------------------------------------
 END MODULE CLUSTER
 !-------------------------------------------------------------------------------
